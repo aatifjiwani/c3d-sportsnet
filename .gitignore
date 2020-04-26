@@ -2,6 +2,6 @@ bin/
 include/
 lib/
 
-train_partition.txt
+*.txt
 
 .Python
