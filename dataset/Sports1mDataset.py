@@ -7,13 +7,14 @@ from pytube import YouTube
 
 youtube_link ='http://www.youtube.com/watch?v='
 class Sports1mDataset(Dataset):
-    def __init__(self, json_file, video_root, max_frames = 500):
+    def __init__(self, json_file, video_root, subsample=15, max_frames = 500):
         with open(json_file) as f:
             self.dataset = json.load(f)
 
         self.videoIDs = list(self.dataset.keys())
         self.video_root = video_root
         self.max_frames = max_frames
+        self.subsample = subsample
 
     def __len__(self):
         return len(self.videoIDs)
@@ -32,7 +33,7 @@ class Sports1mDataset(Dataset):
             currIdx = np.random.choice(len(self), 1)[0]
 
         #process video
-        video_frames = skvideo.io.vread(video_path)[:self.max_frames]
+        video_frames = skvideo.io.vread(video_path)[::self.subsample][:self.max_frames]
         video_frames = video_frames.astype(np.float32) / 255.0
         if video_frames.shape[0] != self.max_frames:
             video_frames = np.pad(video_frames[:self.pad_frames], ((0,self.max_frames - video_frames.shape[0]),(0,0),(0,0),(0,0)))
@@ -40,7 +41,6 @@ class Sports1mDataset(Dataset):
         #delete raw video
         os.remove(video_path)
 
-        print(video_frames.shape)
         return {"video": video_frames, "class": classes}
 
     

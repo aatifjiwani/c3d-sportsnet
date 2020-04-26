@@ -31,10 +31,10 @@ class C3D(nn.Module):
         super(C3D, self).__init__()
 
         self.num_params_factor = num_params_factor
-        self.conv_1a = C3D_BatchNorm(in_channels, int(64 * num_params_factor), (3, 3, 3), padding=1, bn=False)
+        self.conv_1a = C3D_BatchNorm(in_channels, int(64 * num_params_factor), (3, 3, 3), padding=1, batch_norm=False)
       
         self.maxpool_1 = nn.MaxPool3d((1, 2, 2), stride=(1, 2, 2)) # 64 x 112 x 112
-        self.conv_2a = C3D_BatchNorm(int(64 * num_params_factor), int(128 * num_params_factor), (3, 3, 3), padding=1, bn=False)
+        self.conv_2a = C3D_BatchNorm(int(64 * num_params_factor), int(128 * num_params_factor), (3, 3, 3), padding=1, batch_norm=False)
         
         self.maxpool_2 = nn.MaxPool3d((2, 2, 2), stride=(2, 2, 2)) # 32 x 56 x 56
 

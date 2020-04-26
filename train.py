@@ -31,13 +31,22 @@ def train(args):
 
     n_classes = args.num_classes
 
-    train_dataset = Sports1mDataset("dataset/sport1m_training_data.json", "dataset/training_videos")
-    val_dataset = Sports1mDataset("dataset/sport1m_validation_data.json", "dataset/validation_videos")
+    train_dataset = Sports1mDataset("dataset/sport1m_training_data.json", "dataset/training_videos", subsample=frame_sample)
+    val_dataset = Sports1mDataset("dataset/sport1m_validation_data.json", "dataset/validation_videos", subsample=frame_sample)
+    print("built datasets...")
 
     model = C3D(3, n_classes, num_params_factor=num_params_factor)
+    print("built model...")
 
-    print(len(train_dataset))
-    print(len(val_dataset))
+    # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True)
+    # val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=4)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers=4)
+    print("built data loaders...")
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    print("built optimizer...")
 
 if __name__ == "__main__":
     main()
