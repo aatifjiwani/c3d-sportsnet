@@ -6,7 +6,7 @@ from torch import cat
 from typing import Union
 
 class C3D_BatchNorm(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, kernel=Union[list, tuple], stride=Union[list, tuple, int] = 1, 
+    def __init__(self, in_channels: int, out_channels: int, kernel: Union[list, tuple], stride: Union[list, tuple, int]=1, 
         padding: int = 0, activation_fn: nn.Module = nn.ReLU(), batch_norm: bool = True) -> None:
 
             super(C3D_BatchNorm, self).__init__()
@@ -23,7 +23,7 @@ class C3D_BatchNorm(nn.Module):
         if self.batch_norm is not None:
             conv_feat = self.batch_norm(conv_feat)
 
-        conv_feat = self.activation_fn(conv_feat)\
+        conv_feat = self.activation_fn(conv_feat)
         return conv_feat
 
 class C3D(nn.Module):

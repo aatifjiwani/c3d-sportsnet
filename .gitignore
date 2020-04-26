@@ -5,3 +5,5 @@ lib/
 *.txt
 
 .Python
+
+**/__pycache__/*
