@@ -2,7 +2,7 @@ bin/
 include/
 lib/
 
-*.txt
+dataset/*.txt
 
 .Python
 
