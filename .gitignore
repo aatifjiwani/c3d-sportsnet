@@ -7,3 +7,5 @@ dataset/*.txt
 .Python
 
 **/__pycache__/*
+
+pyvenv.cfg

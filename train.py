@@ -35,7 +35,7 @@ def train(args):
     val_dataset = Sports1mDataset("dataset/sport1m_validation_data.json", "dataset/validation_videos", subsample=frame_sample)
     print("built datasets...")
 
-    model = C3D(3, n_classes, num_params_factor=num_params_factor)
+    model = C3D(3, n_classes, num_params_factor=num_params_factor).cuda()
     print("built model...")
 
     # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True)
@@ -62,14 +62,14 @@ def train_epoch(model, train_loader, optimizer, epoch):
 
     for batch_idx, example in enumerate(train_loader):
         # Metrics
-        correct = torch.tensor(0.0) #.cuda()
-        examples = torch.tensor(0.0) #.cuda()
+        correct = torch.tensor(0.0).cuda()
+        examples = torch.tensor(0.0).cuda()
 
         # Model data setup
         data = example['video'] # B, F, H, W, C
         target = example['class'] 
 
-        # data, target = data.cuda(), target.cuda()
+        data, target = data.cuda(), target.cuda()
         data = torch.transpose(data, 1, 4) #B, C, H, W, F
         data = torch.transpose(data, 2, 4) #B, C, F, W, H
 
@@ -78,8 +78,8 @@ def train_epoch(model, train_loader, optimizer, epoch):
 
         print("forward pass in model...")
 
-        # output = model(data)
-        # loss = torch.nn.functional.cross_entropy(output, target)
+        output = model(data)
+        loss = torch.nn.functional.cross_entropy(output, target)
         break
 
         # Compute training accuracy
