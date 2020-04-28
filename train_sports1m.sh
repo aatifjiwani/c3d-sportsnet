@@ -1,1 +1,1 @@
-python train.py --learning_rate 3e-4 --momentum 0.9 --batch_size 8 --epochs 100 --subsample 15 --num_classes 487
+python train.py --learning_rate 3e-4 --momentum 0.9 --batch_size 2 --epochs 1 --subsample 25 --num_classes 487

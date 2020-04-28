@@ -41,12 +41,59 @@ def train(args):
     # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True)
     # val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=4)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=1)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers=4)
     print("built data loaders...")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     print("built optimizer...")
+
+    print("Initializing training...")
+    for epoch in range(epochs):
+        train_epoch(model, train_loader, optimizer, epoch+1)
+        break
+
+
+def train_epoch(model, train_loader, optimizer, epoch):
+    model.train()
+
+    total_correct = torch.tensor(0.0) #.cuda()
+    total_examples = torch.tensor(0.0) #.cuda()
+
+    for batch_idx, example in enumerate(train_loader):
+        # Metrics
+        correct = torch.tensor(0.0) #.cuda()
+        examples = torch.tensor(0.0) #.cuda()
+
+        # Model data setup
+        data = example['video'] # B, F, H, W, C
+        target = example['class'] 
+
+        # data, target = data.cuda(), target.cuda()
+        data = torch.transpose(data, 1, 4) #B, C, H, W, F
+        data = torch.transpose(data, 2, 4) #B, C, F, W, H
+
+        # Compute the forward pass
+        optimizer.zero_grad()
+
+        print("forward pass in model...")
+
+        # output = model(data)
+        # loss = torch.nn.functional.cross_entropy(output, target)
+        break
+
+        # Compute training accuracy
+        # pred = output.argmax(dim=1, keepdim=True)
+        # correct += pred.eq(target.view_as(pred)).sum()
+        # examples += target.size()[0]
+
+        # optimizer.step()
+
+        # # Reduction as sum
+        # torch.distributed.reduce(examples, dst=0)
+        # torch.distributed.reduce(correct, dst=0)
+        # total_correct += correct
+        # total_examples += examples
 
 if __name__ == "__main__":
     main()
