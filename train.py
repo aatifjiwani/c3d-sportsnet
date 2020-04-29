@@ -13,7 +13,6 @@ def main():
     parser.add_argument('--batch_size', type=int, help='Batch Size', default=8)
     parser.add_argument('--epochs', type=int, help='Number of Epochs to Train the Model for', default=300)
     parser.add_argument('--subsample', type=int, help='Subsample every N frames')
-    parser.add_argument('--num_params_factor', type=float, help='Factor for number of params', default=1.0)
     parser.add_argument('--num_classes', type=int, help="Number of classes tp predict", default=487)
 
     args = parser.parse_args()
@@ -27,7 +26,6 @@ def train(args):
     batch_size = args.batch_size
     epochs = args.epochs
     frame_sample = args.subsample
-    num_params_factor = args.num_params_factor
 
     n_classes = args.num_classes
 
@@ -35,7 +33,7 @@ def train(args):
     val_dataset = Sports1mDataset("dataset/sport1m_validation_data.json", "dataset/validation_videos", subsample=frame_sample)
     print("built datasets...")
 
-    model = C3D(3, n_classes, num_params_factor=num_params_factor).cuda()
+    model = C3D(3, n_classes).cuda()
     print("built model...")
 
     # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True)
@@ -49,9 +47,10 @@ def train(args):
     print("built optimizer...")
 
     print("Initializing training...")
-    for epoch in range(epochs):
-        train_epoch(model, train_loader, optimizer, epoch+1)
-        break
+    train_epoch(model, train_loader, optimizer, 1)
+    # for epoch in range(epochs):
+    #     train_epoch(model, train_loader, optimizer, epoch+1)
+    #     break
 
 
 def train_epoch(model, train_loader, optimizer, epoch):
@@ -75,10 +74,17 @@ def train_epoch(model, train_loader, optimizer, epoch):
 
         # Compute the forward pass
         optimizer.zero_grad()
+        
+        target = target.view(-1,)
+
+        print("data", data.shape)
+        print("label", target.shape)
+
 
         print("forward pass in model...")
 
         output = model(data)
+        print(output.shape)
         loss = torch.nn.functional.cross_entropy(output, target)
         break
 

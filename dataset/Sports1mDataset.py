@@ -38,12 +38,10 @@ class Sports1mDataset(Dataset):
         curr_fps = curr_fps if curr_fps is not None else 30
 
         video_frames = skvideo.io.vread(video_path)
-        video_frames = downsample_video_fps(video_frames, curr_fps, 5) # downsample video
-        video_frames = resize_video(video_frames, (224, 224))[:self.max_frames] #resize video and cut to max_frames
+        video_frames = process_video(video_frames=video_frames, curr_fps=curr_fps, downsample_fps=5, resize_shape=(128, 171),
+            clip_length_sec=2, num_clips=5, random_crop_size=(117,117), num_random_crops=16)
 
         video_frames = video_frames.astype(np.float32) / 255.0
-        if video_frames.shape[0] != self.max_frames:
-            video_frames = np.pad(video_frames[:self.max_frames], ((0,self.max_frames - video_frames.shape[0]),(0,0),(0,0),(0,0)))
     
         #delete raw video
         os.remove(video_path)
