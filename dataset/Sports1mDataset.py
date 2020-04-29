@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import skvideo.io
 from pytube import YouTube
-from dataset.utils.utils import *
+from utils.utils import *
 
 youtube_link ='http://www.youtube.com/watch?v='
 
@@ -27,7 +27,7 @@ class Sports1mDataset(Dataset):
         while video_path is None:
             ytID = self.videoIDs[currIdx]
             classes = [int(x) for x in self.dataset[ytID]]
-            print("retrieving", ytID)
+            print("attempting to retrieve", ytID)
 
             #download raw video
             video_path, curr_fps = self.download_video(ytID)
@@ -53,17 +53,19 @@ class Sports1mDataset(Dataset):
         video_link = youtube_link + ytID
         try:
             yt = YouTube(video_link)
+            print("got the video")
             stream = yt.streams.filter(only_video=True, resolution="240p", subtype='mp4').first()
-
+            print("got the stream")
             stream.download(filename=ytID, output_path=self.video_root)
 
             return os.path.join(self.video_root, "{}.mp4".format(ytID)), stream.fps
-        except:
+        except Exception as e:
+            print(e)
             return None, None
         
 if __name__ == "__main__":
     # print(os.listdir())
     d = Sports1mDataset("sport1m_training_data.json", "training_videos")
     print(len(d))
-    vid = d[6000]["video"]
+    vid = d[1234]["video"]
     print(vid.shape)

@@ -84,7 +84,6 @@ def train_epoch(model, train_loader, optimizer, epoch):
         print("forward pass in model...")
 
         output = model(data)
-        print(output.shape)
         loss = torch.nn.functional.cross_entropy(output, target)
         break
 
