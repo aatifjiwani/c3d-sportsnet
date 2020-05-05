@@ -85,6 +85,7 @@ def train_epoch(model, train_loader, optimizer, epoch):
 
         output = model(data)
         loss = torch.nn.functional.cross_entropy(output, target)
+        print(output.shape)
         break
 
         # Compute training accuracy

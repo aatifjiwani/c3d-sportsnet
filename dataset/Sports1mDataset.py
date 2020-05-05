@@ -5,8 +5,11 @@ import numpy as np
 import skvideo.io
 from pytube import YouTube
 import youtube_dl
-from utils.utils import *
-from contextlib import contextmanager
+
+try:
+    from utils.utils import *
+except ImportError:
+    from dataset.utils.utils import *
 
 youtube_link ='http://www.youtube.com/watch?v='
 
@@ -67,6 +70,9 @@ class Sports1mDataset(Dataset):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info('http://www.youtube.com/watch?v={}'.format(ytID), download=True)
                 filename = ydl.prepare_filename(info)
+
+            if '.webm' in filename:
+                filename = filename.replace('.webm', '.mkv')
 
             return filename
         except:
