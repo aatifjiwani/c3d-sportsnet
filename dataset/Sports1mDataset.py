@@ -4,7 +4,9 @@ from torch.utils.data import Dataset
 import numpy as np
 import skvideo.io
 from pytube import YouTube
+import youtube_dl
 from utils.utils import *
+from contextlib import contextmanager
 
 youtube_link ='http://www.youtube.com/watch?v='
 
@@ -27,15 +29,14 @@ class Sports1mDataset(Dataset):
         while video_path is None:
             ytID = self.videoIDs[currIdx]
             classes = [int(x) for x in self.dataset[ytID]]
-            print("attempting to retrieve", ytID)
 
             #download raw video
-            video_path, curr_fps = self.download_video(ytID)
+            video_path = self.download_video(ytID)
 
             currIdx = np.random.choice(len(self), 1)[0]
 
         #process video
-        curr_fps = curr_fps if curr_fps is not None else 30
+        curr_fps = 30
 
         video_frames = skvideo.io.vread(video_path)
         video_frames = process_video(video_frames=video_frames, curr_fps=curr_fps, downsample_fps=5, resize_shape=(128, 171),
@@ -49,23 +50,48 @@ class Sports1mDataset(Dataset):
         return {"video": video_frames, "class": np.random.choice(classes, 1)}
 
     
+    # OLD DOWNLOAD
     def download_video(self, ytID):
-        video_link = youtube_link + ytID
-        try:
-            yt = YouTube(video_link)
-            print("got the video")
-            stream = yt.streams.filter(only_video=True, resolution="240p", subtype='mp4').first()
-            print("got the stream")
-            stream.download(filename=ytID, output_path=self.video_root)
+        ydl_opts = {
+            'format':'bestvideo[height<=240]+best[ext=mp4]',
+            "verbose": None,
+            'writesubtitles': False,
+            'geo-bypass':True,
+            'write-all-tumbnails': False,
+            'write-sub': False,
+            'write-description': False,
+            'outtmpl': f'{self.video_root}/%(id)s.%(ext)s',
+        }
 
-            return os.path.join(self.video_root, "{}.mp4".format(ytID)), stream.fps
-        except Exception as e:
-            print(e)
-            return None, None
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info('http://www.youtube.com/watch?v={}'.format(ytID), download=True)
+                filename = ydl.prepare_filename(info)
+
+            return filename
+        except:
+            return None
+
+
+    # def download_video(self, ytID):
+    #     video_link = youtube_link + ytID
+    #     try:
+    #         yt = YouTube(video_link)
+    #         print("got the video")
+    #         stream = yt.streams.filter(only_video=True, resolution="240p", subtype='mp4').first()
+    #         print("got the stream")
+    #         stream.download(filename=ytID, output_path=self.video_root)
+
+    #         return os.path.join(self.video_root, "{}.mp4".format(ytID)), stream.fps
+    #     except Exception as e:
+    #         print(e)
+    #         return None, None
         
 if __name__ == "__main__":
     # print(os.listdir())
     d = Sports1mDataset("sport1m_training_data.json", "training_videos")
-    print(len(d))
-    vid = d[1234]["video"]
-    print(vid.shape)
+        # meta = ydl.extract_info('https://www.youtube.com/watch?v={}'.format(d.videoIDs[200]), download=False) 
+        # print(meta['formats'])
+    
+    # print(os.path.dirname("YaKeaTJe04s"))
+
