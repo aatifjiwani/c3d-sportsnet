@@ -31,7 +31,7 @@ class C3D(nn.Module):
         self.fc_7 = nn.Linear(4096, 4096)
         self.fc_8 = nn.Linear(4096, out_channels)
 
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(dim = 1)
 
     def forward(self, x):
         x = self.conv_1(x)

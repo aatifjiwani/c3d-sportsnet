@@ -3,6 +3,9 @@ from models.c3d import *
 import torch
 from dataset.Sports1mDataset import Sports1mDataset
 import argparse
+import logging
+from tqdm import tqdm
+
 
 
 def main():
@@ -19,6 +22,13 @@ def main():
 
     train(args)
 
+def createLogger():
+    console_logging_format = "%(levelname)s %(message)s"
+    logging.basicConfig(level=logging.INFO, format=console_logging_format)
+    logger = logging.getLogger()
+
+    return logger
+
 def train(args):
 
     lr = args.learning_rate
@@ -29,41 +39,36 @@ def train(args):
 
     n_classes = args.num_classes
 
+    logger = createLogger()
+    logger.info("Starting training...")
+
     train_dataset = Sports1mDataset("dataset/sport1m_training_data.json", "dataset/training_videos", subsample=frame_sample)
     val_dataset = Sports1mDataset("dataset/sport1m_validation_data.json", "dataset/validation_videos", subsample=frame_sample)
-    print("built datasets...")
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=None)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers=None)
+
+    logger.info("Datasets modules built...")
 
     model = C3D(3, n_classes).cuda()
-    print("built model...")
-
-    # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True)
-    # val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
-
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=1)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers=4)
-    print("built data loaders...")
-
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    print("built optimizer...")
+
+    logger.info("Experiment modules built...")
 
     print("Initializing training...")
     train_epoch(model, train_loader, optimizer, 1)
-    # for epoch in range(epochs):
-    #     train_epoch(model, train_loader, optimizer, epoch+1)
-    #     break
 
 
 def train_epoch(model, train_loader, optimizer, epoch):
     model.train()
 
-    total_correct = torch.tensor(0.0) #.cuda()
-    total_examples = torch.tensor(0.0) #.cuda()
+    total_loss = 0
+    total_accuracy = 0
 
-    for batch_idx, example in enumerate(train_loader):
-        # Metrics
-        correct = torch.tensor(0.0).cuda()
-        examples = torch.tensor(0.0).cuda()
+    loader = tqdm(train_loader)
+    loader.set_description("Epoch {} - Training".format(epoch))
 
+    for batch_idx, example in enumerate(loader):
         # Model data setup
         data = example['video'] # B, F, H, W, C
         target = example['class'] 
@@ -71,35 +76,25 @@ def train_epoch(model, train_loader, optimizer, epoch):
         data, target = data.cuda(), target.cuda()
         data = torch.transpose(data, 1, 4) #B, C, H, W, F
         data = torch.transpose(data, 2, 4) #B, C, F, W, H
+        target = target.view(-1,) #B,
 
         # Compute the forward pass
         optimizer.zero_grad()
-        
-        target = target.view(-1,)
-
-        print("data", data.shape)
-        print("label", target.shape)
-
-
-        print("forward pass in model...")
 
         output = model(data)
         loss = torch.nn.functional.cross_entropy(output, target)
-        print(output.shape)
-        break
+
+        loss.backward()
+        optimizer.step()
 
         # Compute training accuracy
-        # pred = output.argmax(dim=1, keepdim=True)
-        # correct += pred.eq(target.view_as(pred)).sum()
-        # examples += target.size()[0]
+        pred = output.argmax(dim=1, keepdim=True)
+        total_accuracy += pred.eq(target.view_as(pred)).sum().item() / float(target.shape[0])
+        total_loss += loss.item()
 
-        # optimizer.step()
-
-        # # Reduction as sum
-        # torch.distributed.reduce(examples, dst=0)
-        # torch.distributed.reduce(correct, dst=0)
-        # total_correct += correct
-        # total_examples += examples
+        avg_loss = total_loss / (batch_idx + 1)
+        avg_accuracy = total_accuracy / (batch_idx + 1)
+        loader.set_description("TRAIN - Avg Loss: %.4f; Avg. Accuracy: %.6f;" % (avg_loss, avg_accuracy*100) )
 
 if __name__ == "__main__":
     main()
