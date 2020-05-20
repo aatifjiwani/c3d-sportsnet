@@ -4,6 +4,35 @@ import numpy as np
 from typing import List, Dict, Any, Tuple, Optional
 import math
 
+def download_video_openCV(video_path: str, downsample_fps: int = None) -> np.ndarray:
+    try:
+        cap = cv2.VideoCapture(video_path)
+    except:
+        raise ValueError("{} is an invalid video".format(video_path))
+
+    fps = int(cap.get(cv2.CAP_PROP_FPS))
+
+    if downsample_fps is not None:
+        fps_factor = int(np.ceil(fps / downsample_fps))
+    
+    frames = []
+    curr_frame = -1
+
+    ret, frame = cap.read()
+    while ret:
+        curr_frame += 1
+        if downsample_fps is not None:
+            if (curr_frame % fps_factor) != 0:
+                ret, frame = cap.read()
+                continue
+
+        frames.append(frame) 
+
+    cap.release()
+    
+    video_frames = np.stack(frames, axis=0)
+    return video_frames
+
 def downsample_video_fps(video_frames: np.ndarray, current_fps: int, target_fps: int) -> np.ndarray:
     if current_fps <= target_fps:
         raise AssertionError('The target FPS of a video should be less than the current FPS when downsampling')
@@ -17,10 +46,9 @@ def resize_video(video_frames: np.ndarray, target_size: Tuple[int, int]) -> np.n
         output_array[i] = cv2.resize(video_frames[i], (target_size[1], target_size[0]))
     return output_array
 
-def random_clip(video_frames: np.ndarray, curr_fps: int, clip_length_seconds: int) -> np.ndarray:
+def random_clip(video_frames: np.ndarray, curr_fps: int, clip_length: int) -> np.ndarray:
     assert len(video_frames.shape) == 4, "video frames must be shape N_frame x H x W x C"
 
-    clip_length = clip_length_seconds * curr_fps
     video_length = video_frames.shape[0]
 
     start = np.random.choice(np.arange(0, video_length - clip_length, 1), 1)[0]
@@ -56,10 +84,12 @@ def process_video(video_frames: np.ndarray, curr_fps: int = 30, downsample_fps: 
     #random clips
     if clip_length_sec is not None and num_clips is not None:
         rand_clips = []
-        for _ in range(num_clips):
-            rand_clips.append( random_clip(video_frames, curr_fps, clip_length_sec) ) #num_frame, H, W, C
+        clip_length = clip_length_sec * curr_fps
+        if (clip_length > video_frames.shape[0]):
+            for _ in range(num_clips):
+                rand_clips.append( random_clip(video_frames, curr_fps, clip_length) ) #num_frame, H, W, C
 
-        video_frames = np.concatenate(rand_clips, axis=0) #clip_len*num_clips, H, W, C
+            video_frames = np.concatenate(rand_clips, axis=0) #clip_len*num_clips, H, W, C
 
     #random crops
     if random_crop_size is not None and num_random_crops is not None:

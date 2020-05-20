@@ -29,6 +29,7 @@ class Sports1mDataset(Dataset):
     def __getitem__(self, idx):
         currIdx = idx
         video_path = None
+        print("downloading")
         while video_path is None:
             ytID = self.videoIDs[currIdx]
             classes = [int(x) for x in self.dataset[ytID]]
@@ -38,17 +39,20 @@ class Sports1mDataset(Dataset):
 
             currIdx = np.random.choice(len(self), 1)[0]
 
-        #process video
+        # process video
         curr_fps = 30
 
-        video_frames = skvideo.io.vread(video_path)
-        video_frames = process_video(video_frames=video_frames, curr_fps=curr_fps, downsample_fps=5, resize_shape=(128, 171),
+        # video_frames = skvideo.io.vread(video_path) # DOWN-SAMPLE HERE WITH OPENCV
+        print("loading")
+        video_frames = download_video_openCV(video_path, downsample_fps=5)
+        os.remove(video_path)
+        print("processing")
+        video_frames = process_video(video_frames=video_frames, curr_fps=curr_fps, downsample_fps=None, resize_shape=(128, 171),
             clip_length_sec=2, num_clips=5, random_crop_size=(117,117), num_random_crops=16)
 
         video_frames = video_frames.astype(np.float32) / 255.0
     
         #delete raw video
-        os.remove(video_path)
 
         return {"video": video_frames, "class": np.random.choice(classes, 1)}
 
@@ -56,13 +60,9 @@ class Sports1mDataset(Dataset):
     # OLD DOWNLOAD
     def download_video(self, ytID):
         ydl_opts = {
-            'format':'bestvideo[height<=240]+best[ext=mp4]',
-            "verbose": None,
-            'writesubtitles': False,
-            'geo-bypass':True,
-            'write-all-tumbnails': False,
-            'write-sub': False,
-            'write-description': False,
+            'format':'133', ##mp4 240p
+            'quiet':True,
+            'verbose': False,
             'outtmpl': f'{self.video_root}/%(id)s.%(ext)s',
         }
 
@@ -96,8 +96,9 @@ class Sports1mDataset(Dataset):
 if __name__ == "__main__":
     # print(os.listdir())
     d = Sports1mDataset("sport1m_training_data.json", "training_videos")
+    p = d[4567]
         # meta = ydl.extract_info('https://www.youtube.com/watch?v={}'.format(d.videoIDs[200]), download=False) 
         # print(meta['formats'])
-    
+    print(p["video"].shape)
     # print(os.path.dirname("YaKeaTJe04s"))
 
