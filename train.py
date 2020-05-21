@@ -42,11 +42,11 @@ def train(args):
     logger = createLogger()
     logger.info("Starting training...")
 
-    train_dataset = Sports1mDataset("dataset/sport1m_training_data.json", "dataset/training_videos", subsample=frame_sample)
-    val_dataset = Sports1mDataset("dataset/sport1m_validation_data.json", "dataset/validation_videos", subsample=frame_sample)
+    train_dataset = Sports1mDataset("dataset/sport1m_training_data.json", "dataset/training_videos")
+    val_dataset = Sports1mDataset("dataset/sport1m_validation_data.json", "dataset/validation_videos")
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=None)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers=None)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers=0)
 
     logger.info("Datasets modules built...")
 

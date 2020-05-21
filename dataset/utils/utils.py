@@ -51,7 +51,13 @@ def random_clip(video_frames: np.ndarray, curr_fps: int, clip_length: int) -> np
 
     video_length = video_frames.shape[0]
 
-    start = np.random.choice(np.arange(0, video_length - clip_length, 1), 1)[0]
+    
+    try:
+        start = np.random.choice(np.arange(0, video_length - clip_length, 1), 1)[0]
+    except:
+        print('ERROR')
+        print(clip_length)
+        print(video_length)
 
     return video_frames[start:start+clip_length]
 
@@ -85,7 +91,7 @@ def process_video(video_frames: np.ndarray, curr_fps: int = 30, downsample_fps: 
     if clip_length_sec is not None and num_clips is not None:
         rand_clips = []
         clip_length = clip_length_sec * curr_fps
-        if (clip_length > video_frames.shape[0]):
+        if (clip_length < video_frames.shape[0]):
             for _ in range(num_clips):
                 rand_clips.append( random_clip(video_frames, curr_fps, clip_length) ) #num_frame, H, W, C
 
