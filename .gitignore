@@ -5,9 +5,13 @@ etc/
 share/
 
 dataset/*.txt
+dataset/training_videos/*
+dataset/validation_videos/*
 
 .Python
 
 **/__pycache__/*
 
 pyvenv.cfg
+
+.vscode

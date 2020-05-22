@@ -7,14 +7,59 @@ from pytube import YouTube
 import youtube_dl
 import time
 
+import multiprocessing
+from joblib import Parallel, delayed
+
 from tqdm import tqdm 
 try:
     from utils.utils import *
 except ImportError:
     from dataset.utils.utils import *
 
+from typing import List, Dict, Optional
+
 # youtube_link ='http://www.youtube.com/watch?v='
 
+class JSONSaver:
+    def __init__(self, root_folder, file_name, max_entries = 100000):
+        self.root = root_folder
+        self.file_name = file_name
+        self.curr_name = file_name
+
+        self.max_entries = max_entries
+        self.entries = {}
+
+        self.hit_max = 0
+    
+    def save_entry(self, key, value):
+        self.entries[key] = value
+        self.save()
+
+    def save(self):
+        if len(self.entries) >= self.max_entries:
+            self.save_file()
+            self.hit_max += 1
+            self.entries = {}
+            self.curr_name = "{}_{}".format(self.file_name, self.hit_max)
+
+    def save_file(self):
+        if len(self.entries) > 0:
+            with open(os.path.join(self.root, self.curr_name + ".json"), "w+") as f:
+                json.dump(self.entries, f, indent = 4, sort_keys = False)
+
+    def save_all(self, entries: List[Optional[Dict[str, Any]]]):
+        """
+        Bypasses max_entries
+
+        Entries must be a list of dictionaries, possible some entries are None
+        """
+
+        for entry in entries:
+            if entry is not None:
+                self.entries.update(entry)
+
+        self.save_file()
+        
 class Sports1mDataset(Dataset):
     def __init__(self, json_file, video_root, max_frames = 1000):
         with open(json_file) as f:
@@ -92,7 +137,7 @@ class Sports1mDataset(Dataset):
         except:
             return None
 
-
+    #OLD DOWNLOAD
     # def download_video(self, ytID):
     #     video_link = youtube_link + ytID
     #     try:
@@ -107,29 +152,50 @@ class Sports1mDataset(Dataset):
     #         print(e)
     #         return None, None
         
+def parallel_metadata(dataset, ytID):
+    info = d.get_video_metadata(ytID) #d.videoIDs[2])
+    time.sleep(0.5)
+    if info is not None:
+        format_133 = list( filter(lambda x: int(x["format_id"]) == 133, info["formats"]) )[0]
+        if format_133['filesize'] is not None:
+            format_133['filesize'] = format_133['filesize'] / 10**6
+
+        return {ytID: {"duration": info["duration"], "filesize": format_133['filesize'],
+            'fps':format_133['fps'], 'height': format_133['height'], "width": format_133['width'] }}
+    else:
+        return None
+
 if __name__ == "__main__":
-    # print(os.listdir())
     d = Sports1mDataset("sport1m_training_data.json", "training_videos")
+    jsonSaver = JSONSaver('cleaned_dataset', "sport1m_training", max_entries=75)
 
-    loader = tqdm(d.videoIDs)
-    num_not_found = 0
-    loader.set_description("Videos not found: {}".format(num_not_found))
+    loader = tqdm(d.videoIDs[:300])
 
-    for ytID in loader:
-        info = d.get_video_metadata(ytID) #d.videoIDs[2])
-        if info is not None:
-            info['duration']
-            format_133 = list( filter(lambda x: int(x["format_id"]) == 133, info["formats"]) )[0]
-            if format_133['filesize'] is not None:
-                format_133['filesize'] / 10**6
-        else:
-            num_not_found += 1
-            loader.set_description("Videos not found: {}".format(num_not_found))
-        time.sleep(1)
+    num_cores = multiprocessing.cpu_count()
+    result = Parallel(n_jobs=num_cores, prefer="threads")(delayed(parallel_metadata)(d, ytID) for ytID in loader)
+
+    jsonSaver.save_all(result)
+
+    # ---- DATASET META EXTRACTION WITHOUT PARALLELIZATION ---- #
+
+    # num_not_found = 0
+    # loader.set_description("Videos not found: {}".format(num_not_found))
+
+    # for ytID in loader:
+    #     info = d.get_video_metadata(ytID) #d.videoIDs[2])
+
+    #     if info is not None:
+    #         format_133 = list( filter(lambda x: int(x["format_id"]) == 133, info["formats"]) )[0]
+    #         if format_133['filesize'] is not None:
+    #             format_133['filesize'] = format_133['filesize'] / 10**6
+
+    #         jsonSaver.save_entry(ytID, {"duration": info["duration"], "filesize": format_133['filesize'],
+    #             'fps':format_133['fps'], 'height': format_133['height'], "width": format_133['width'] })
+    #     else:
+    #         num_not_found += 1
+            
+    #     loader.set_description("Videos not found: {}".format(num_not_found))
+    #     time.sleep(0.5) ##PREVENTS 429 ERROR. 
     
-
-         # meta = ydl.extract_info('https://www.youtube.com/watch?v={}'.format(d.videoIDs[200]), download=False) 
-        # print(meta['formats'])
-    
-    # print(os.path.dirname("YaKeaTJe04s"))
+    # jsonSaver.save_file()
 
