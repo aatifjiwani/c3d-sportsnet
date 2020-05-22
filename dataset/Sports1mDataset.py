@@ -150,7 +150,7 @@ class Sports1mDataset(Dataset):
         
 def parallel_metadata(dataset, ytID):
     info = d.get_video_metadata(ytID) #d.videoIDs[2])
-    time.sleep(0.5)
+    time.sleep(1)
     if info is not None:
         format_133 = list( filter(lambda x: int(x["format_id"]) == 133, info["formats"]) )[0]
         if format_133['filesize'] is not None:
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     d = Sports1mDataset("sport1m_training_data.json", "training_videos")
     jsonSaver = JSONSaver('cleaned_dataset', "sport1m_training", max_entries=75)
 
-    loader = tqdm(d.videoIDs[:300])
+    loader = tqdm(d.videoIDs[:1000])
 
     num_cores = multiprocessing.cpu_count()
     result = Parallel(n_jobs=num_cores, prefer="threads")(delayed(parallel_metadata)(d, ytID) for ytID in loader)
