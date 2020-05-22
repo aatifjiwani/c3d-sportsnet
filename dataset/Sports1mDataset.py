@@ -53,11 +53,11 @@ class JSONSaver:
 
         Entries must be a list of dictionaries, possible some entries are None
         """
+        entries = list( filter(lambda x: x is not None, entries) )
+        while len(entries) != 1:
+            entries[0].update(entries.pop())
 
-        for entry in entries:
-            if entry is not None:
-                self.entries.update(entry)
-
+        self.entries = entries[0]
         self.save_file()
         
 class Sports1mDataset(Dataset):
@@ -95,8 +95,6 @@ class Sports1mDataset(Dataset):
         # process video
         curr_fps = 30
 
-        # video_frames = skvideo.io.vread(video_path) # DOWN-SAMPLE HERE WITH OPENCV
-        #print("loading")
         video_frames = download_video_openCV(video_path, downsample_fps=3)
 
         if video_frames.shape[0] > self.max_frames:
@@ -104,13 +102,11 @@ class Sports1mDataset(Dataset):
             video_frames = video_frames[::sample_rate]
 
         os.remove(video_path)
-        #print("processing")
         video_frames = process_video(video_frames=video_frames, curr_fps=curr_fps, downsample_fps=None, resize_shape=(128, 171),
             clip_length_sec=2, num_clips=5, random_crop_size=(117,117), num_random_crops=16)
 
         video_frames = video_frames.astype(np.float32) / 255.0
     
-        #delete raw video
 
         return {"video": video_frames, "class": np.random.choice(classes, 1)}
 
