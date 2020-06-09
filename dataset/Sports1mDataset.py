@@ -17,6 +17,7 @@ except ImportError:
     from dataset.utils.utils import *
 
 from typing import List, Dict, Optional
+import matplotlib.pyplot as plt
 
 import argparse
 
@@ -79,7 +80,7 @@ class JSONSaver:
         self.curr_name = "{}_{}".format(self.file_name, self.hit_max)
         
 class Sports1mDataset(Dataset):
-    def __init__(self, json_file, video_root, max_frames = 1000):
+    def __init__(self, json_file, video_root, max_frames = 1000, timer=None):
         with open(json_file) as f:
             self.dataset = json.load(f)
 
@@ -94,21 +95,27 @@ class Sports1mDataset(Dataset):
             'outtmpl': f'{self.video_root}/%(id)s.%(ext)s',
         }
 
+        self.timer = timer
+
     def __len__(self):
         return len(self.videoIDs)
 
     def __getitem__(self, idx):
         currIdx = idx
         video_path = None
-        #print("downloading")
+
+        if self.timer is not None: self.timer.start()
+
         while video_path is None:
             ytID = self.videoIDs[currIdx]
-            classes = [int(x) for x in self.dataset[ytID]]
+            classes = [int(x) for x in self.dataset[ytID]["classes"]] #add classes for cleaned dataset
 
             #download raw video
             video_path = self.download_video(ytID)
 
             currIdx = np.random.choice(len(self), 1)[0]
+
+        if self.timer is not None: self.timer.lap()
 
         # process video
         curr_fps = 30
@@ -119,12 +126,15 @@ class Sports1mDataset(Dataset):
             sample_rate = video_frames.shape[0] // self.max_frames
             video_frames = video_frames[::sample_rate]
 
+        if self.timer is not None: self.timer.lap()
+
         os.remove(video_path)
         video_frames = process_video(video_frames=video_frames, curr_fps=curr_fps, downsample_fps=None, resize_shape=(128, 171),
             clip_length_sec=2, num_clips=5, random_crop_size=(117,117), num_random_crops=16)
 
         video_frames = video_frames.astype(np.float32) / 255.0
     
+        if self.timer is not None: self.timer.lap()
 
         return {"video": video_frames, "class": np.random.choice(classes, 1)}
 
@@ -166,8 +176,40 @@ class Sports1mDataset(Dataset):
     #         print(e)
     #         return None, None
         
+def test_time(maximum_entries = 100):
+    timer = Timer()
+    dataset = Sports1mDataset("cleaned_dataset/sports1m_training_cleaned.json", "training_videos", timer=timer)
+
+    times_set = []
+    durations = []
+
+    for x in tqdm(range(len(dataset))):
+        dataset[x]
+        times_set.append(timer.laps)
+        timer.reset()
+
+        durations.append(dataset.dataset[dataset.videoIDs[x]]["duration"])
+
+        if (len(times_set)) >= maximum_entries:
+            break
+
+    times_set = np.array(times_set)
+    download, load, process = times_set[:, 0], times_set[:, 1], times_set[:, 2]
+
+    durations = np.array(durations)
+
+    plt.scatter(durations, download, color="red")
+    plt.scatter(durations, load, color="blue")
+    plt.scatter(durations, process, color="green")
+
+    plt.legend(["Download time", "Load time", "Process time"], loc="upper left")
+
+    plt.savefig("plots/timing.png")
+    plt.show()
+    plt.clf()
+
 def parallel_metadata(dataset, ytID):
-    info = d.get_video_metadata(ytID) #d.videoIDs[2])
+    info = dataset.get_video_metadata(ytID) #d.videoIDs[2])
     time.sleep(4)
     if info is not None:
         format_133 = list( filter(lambda x: int(x["format_id"]) == 133, info["formats"]) )[0]
@@ -180,49 +222,43 @@ def parallel_metadata(dataset, ytID):
         return None
 
 if __name__ == "__main__":
+    test_time()
+
     # jsonSaver = JSONSaver("cleaned_dataset", "sports1m_training_cleaned")
     # jsonSaver.merge_all_in_folder()
 
-    parser = argparse.ArgumentParser(description="C3D Sports1M METADATA extractor")
+    # parser = argparse.ArgumentParser(description="C3D Sports1M METADATA extractor")
 
-    parser.add_argument('--name', type=str, help='base file name', default='sports1m_training')
-    parser.add_argument('--divisions', type=int, help="Number of divisions", default=12)
-    parser.add_argument('--start', type=int, help='Starting division', default=0)
+    # parser.add_argument('--name', type=str, help='base file name', default='sports1m_training')
+    # parser.add_argument('--divisions', type=int, help="Number of divisions", default=12)
+    # parser.add_argument('--start', type=int, help='Starting division', default=0)
 
-    args = parser.parse_args()
+    # args = parser.parse_args()
 
-    d = Sports1mDataset("sport1m_training_data.json", "training_videos")
-    jsonSaver = JSONSaver('cleaned_dataset', args.name)
+    # d = Sports1mDataset("sport1m_training_data.json", "training_videos")
+    # jsonSaver = JSONSaver('cleaned_dataset', args.name)
 
-    assert len(d.videoIDs) % args.divisions == 0, "num divisions must be evenly divisible by length"
-    divisions = args.divisions
-    samples_per_divisions = len(d.videoIDs) // args.divisions
+    # assert len(d.videoIDs) % args.divisions == 0, "num divisions must be evenly divisible by length"
+    # divisions = args.divisions
+    # samples_per_divisions = len(d.videoIDs) // args.divisions
 
-    start = args.start
-    for curr_div in range(start, divisions):
-        print("STARTING EXTRACTION AT DIVISION {} / {} \n\n".format(curr_div, divisions - 1))
+    # start = args.start
+    # for curr_div in range(start, divisions):
+    #     print("STARTING EXTRACTION AT DIVISION {} / {} \n\n".format(curr_div, divisions - 1))
 
-        start_ptr = curr_div * samples_per_divisions
-        end_ptr = start_ptr + samples_per_divisions
+    #     start_ptr = curr_div * samples_per_divisions
+    #     end_ptr = start_ptr + samples_per_divisions
 
-        loader = tqdm(d.videoIDs[start_ptr:end_ptr])
+    #     loader = tqdm(d.videoIDs[start_ptr:end_ptr])
 
-        num_cores = multiprocessing.cpu_count()
-        result = Parallel(n_jobs=num_cores, prefer="threads")(delayed(parallel_metadata)(d, ytID) for ytID in loader)
+    #     num_cores = multiprocessing.cpu_count()
+    #     result = Parallel(n_jobs=num_cores, prefer="threads")(delayed(parallel_metadata)(d, ytID) for ytID in loader)
 
-        # print("{} - {}".format(curr_div * samples_per_divisions, (curr_div + 1) * samples_per_divisions))
+    #     # print("{} - {}".format(curr_div * samples_per_divisions, (curr_div + 1) * samples_per_divisions))
 
-        print("SAVING EXTRACTION AT DIVISION {} / {} \n\n".format(curr_div, divisions - 1))
-        jsonSaver.save_all(result)
-        jsonSaver.reset()
-
-    
-    # loader = tqdm(d.videoIDs)
-
-    # num_cores = multiprocessing.cpu_count()
-    # result = Parallel(n_jobs=num_cores, prefer="threads")(delayed(parallel_metadata)(d, ytID) for ytID in loader)
-
-    # jsonSaver.save_all(result)
+    #     print("SAVING EXTRACTION AT DIVISION {} / {} \n\n".format(curr_div, divisions - 1))
+    #     jsonSaver.save_all(result)
+    #     jsonSaver.reset()
 
     # ---- DATASET META EXTRACTION WITHOUT PARALLELIZATION ---- #
 

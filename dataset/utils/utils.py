@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from typing import List, Dict, Any, Tuple, Optional
 import math
+import time as stopwatch
 
 def download_video_openCV(video_path: str, downsample_fps: int = None) -> np.ndarray:
     try:
@@ -109,6 +110,32 @@ def process_video(video_frames: np.ndarray, curr_fps: int = 30, downsample_fps: 
         video_frames = np.stack(rand_crops, axis=0)
 
     return video_frames
+
+class Timer:
+    def __init__(self,):
+        self.start_time = None
+        self.recentLap = None
+        self.duration = None
+        self.laps = []
+    
+    def start(self):
+        self.start_time = stopwatch.time()
+        self.recentLap = self.start_time
+
+    def lap(self):
+        currTime = stopwatch.time()
+        self.laps.append(currTime - self.recentLap)
+        self.recentLap = stopwatch.time()
+
+    def end(self):
+        self.duration = stopwatch.time() - self.start_time
+
+    def reset(self):
+        self.start_time, self.duration, self.recentLap = None, None, None
+        self.laps = []
+
+
+
     
         
         
