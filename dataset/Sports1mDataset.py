@@ -168,7 +168,7 @@ class Sports1mDataset(Dataset):
         
 def parallel_metadata(dataset, ytID):
     info = d.get_video_metadata(ytID) #d.videoIDs[2])
-    time.sleep(1)
+    time.sleep(4)
     if info is not None:
         format_133 = list( filter(lambda x: int(x["format_id"]) == 133, info["formats"]) )[0]
         if format_133['filesize'] is not None:
