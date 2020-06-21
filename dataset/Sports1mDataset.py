@@ -80,22 +80,28 @@ class JSONSaver:
         self.curr_name = "{}_{}".format(self.file_name, self.hit_max)
         
 class Sports1mDataset(Dataset):
-    def __init__(self, json_file, video_root, max_frames = 1000, timer=None):
+    def __init__(self, json_file, video_root, downsample_fps = 3, max_frames = 1000, timer=None):
         with open(json_file) as f:
             self.dataset = json.load(f)
 
         self.videoIDs = list(self.dataset.keys())
         self.video_root = video_root
         self.max_frames = max_frames
+        self.downsample_fps = downsample_fps
 
         self.ydl_opts = {
             'format':'133', ##mp4 240p
             'quiet':True,
             'verbose': False,
+            'no_warnings': True,
             'outtmpl': f'{self.video_root}/%(id)s.%(ext)s',
         }
 
         self.timer = timer
+
+    def filter_videos(self, key, filter_func):
+        nested_filter_func = lambda k: filter_func(self.dataset[k][key])
+        self.videoIDs = list( filter ( nested_filter_func, self.dataset.keys() ))
 
     def __len__(self):
         return len(self.videoIDs)
@@ -120,7 +126,7 @@ class Sports1mDataset(Dataset):
         # process video
         curr_fps = 30
 
-        video_frames = download_video_openCV(video_path, downsample_fps=3)
+        video_frames = download_video_openCV(video_path, downsample_fps= self.downsample_fps)
 
         if video_frames.shape[0] > self.max_frames:
             sample_rate = video_frames.shape[0] // self.max_frames
@@ -176,21 +182,32 @@ class Sports1mDataset(Dataset):
     #         print(e)
     #         return None, None
         
-def test_time(maximum_entries = 100):
+def test_time(maximum_entries = 1000):
     timer = Timer()
     dataset = Sports1mDataset("cleaned_dataset/sports1m_training_cleaned.json", "training_videos", timer=timer)
 
     times_set = []
     durations = []
 
+    holdout_times_set = []
+    holdout_durations = []
+
     for x in tqdm(range(len(dataset))):
+        curr_id = dataset.videoIDs[x]
+
         dataset[x]
-        times_set.append(timer.laps)
+        
+
+        if dataset.dataset[curr_id]["filesize"] is None:
+            holdout_times_set.append(timer.laps)
+            holdout_durations.append(dataset.dataset[curr_id]["duration"])
+        else:
+            times_set.append(timer.laps)
+            durations.append(dataset.dataset[curr_id]["duration"])
+
         timer.reset()
 
-        durations.append(dataset.dataset[dataset.videoIDs[x]]["duration"])
-
-        if (len(times_set)) >= maximum_entries:
+        if (len(times_set) + len(holdout_times_set)) >= maximum_entries:
             break
 
     times_set = np.array(times_set)
@@ -202,11 +219,25 @@ def test_time(maximum_entries = 100):
     plt.scatter(durations, load, color="blue")
     plt.scatter(durations, process, color="green")
 
-    plt.legend(["Download time", "Load time", "Process time"], loc="upper left")
+    holdout_times_set = np.array(holdout_times_set)
+    download, load, process = holdout_times_set[:, 0], holdout_times_set[:, 1], holdout_times_set[:, 2]
 
-    plt.savefig("plots/timing.png")
+    holdout_durations = np.array(holdout_durations)
+
+    plt.scatter(holdout_durations, download, color="red", marker='x')
+    plt.scatter(holdout_durations, load, color="blue", marker='x')
+    plt.scatter(holdout_durations, process, color="green", marker='x')
+
+    plt.legend(["Download", "Load", "Process",
+                "HO Download", "HO Load", "HO Process"], loc="upper left")
+
+    plt.savefig("plots/timing_0.png")
     plt.show()
     plt.clf()
+
+    with open("plots/count_0.txt", "w+") as f:
+        f.write("Number of samples WITH    filesize: {}\n".format(len(durations)))
+        f.write("Number of samples WITHOUT filesize: {}\n".format(len(holdout_durations)))
 
 def parallel_metadata(dataset, ytID):
     info = dataset.get_video_metadata(ytID) #d.videoIDs[2])
@@ -222,7 +253,22 @@ def parallel_metadata(dataset, ytID):
         return None
 
 if __name__ == "__main__":
-    test_time()
+
+    # ---- DATASET FILTERING TEST ---- #
+
+    dataset = Sports1mDataset("cleaned_dataset/sports1m_training_cleaned.json", "training_videos")
+    dataset.filter_videos('duration', lambda x: x <= 120)
+
+    print(len(dataset.videoIDs))
+
+    # ---- DATASET QUERY TIMING EXPERIMENT ---- #
+
+    #test_time()
+
+    #WpOLaYzj3gM
+    #WEsgBn8UoeY
+
+    # ---- DATASET META EXTRACTION WITH PARALLELIZATION ---- #
 
     # jsonSaver = JSONSaver("cleaned_dataset", "sports1m_training_cleaned")
     # jsonSaver.merge_all_in_folder()
